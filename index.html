@@ -41,6 +41,12 @@
       </div>
     </form>
 
+    <div id="filters" class="filters" hidden>
+      <input type="search" id="search" aria-label="Search applications"
+             placeholder="Search company, role or notes">
+      <div id="chips" class="chips" role="group" aria-label="Filter by status"></div>
+    </div>
+
     <div class="toolbar">
       <p id="summary" class="summary"></p>
       <div class="toolbar-buttons">
@@ -66,6 +72,10 @@
         <tbody id="rows"></tbody>
       </table>
       <p id="empty" class="empty" hidden>No applications yet. Add your first one above.</p>
+      <div id="no-matches" class="empty" hidden>
+        <p>No applications match your search. Try a different search or clear the filters.</p>
+        <button type="button" id="clear-filters">Clear filters</button>
+      </div>
     </div>
   </main>
   <dialog id="import-dialog">

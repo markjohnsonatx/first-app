@@ -20,8 +20,15 @@
     notes: document.getElementById("notes")
   };
 
+  var filtersEl = document.getElementById("filters");
+  var searchEl = document.getElementById("search");
+  var chipsEl = document.getElementById("chips");
+  var noMatchesEl = document.getElementById("no-matches");
+
   var apps = load();
   var editingId = null;
+  var searchQuery = "";
+  var statusFilter = "All";
 
   function load() {
     try {
@@ -99,14 +106,76 @@
     return sel;
   }
 
+  function matchesSearch(app) {
+    var q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return [app.company, app.role, app.notes].some(function (text) {
+      return String(text || "").toLowerCase().indexOf(q) !== -1;
+    });
+  }
+
+  function isVisible(app) {
+    return matchesSearch(app) && (statusFilter === "All" || app.status === statusFilter);
+  }
+
+  function setStatusFilter(name) {
+    statusFilter = name;
+    render();
+    var chips = chipsEl.querySelectorAll("button");
+    for (var i = 0; i < chips.length; i++) {
+      if (chips[i].dataset.status === name) { chips[i].focus(); break; }
+    }
+  }
+
+  function renderChips(counts, total) {
+    chipsEl.textContent = "";
+    ["All"].concat(STATUSES).forEach(function (name) {
+      var n = name === "All" ? total : (counts[name] || 0);
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "chip" + (n === 0 && name !== "All" ? " zero" : "");
+      btn.dataset.status = name;
+      btn.setAttribute("aria-pressed", String(statusFilter === name));
+      btn.appendChild(document.createTextNode(name + " "));
+      var count = document.createElement("span");
+      count.className = "count";
+      count.textContent = String(n);
+      btn.appendChild(count);
+      btn.addEventListener("click", function () { setStatusFilter(name); });
+      chipsEl.appendChild(btn);
+    });
+  }
+
+  function clearFilters() {
+    searchQuery = "";
+    statusFilter = "All";
+    searchEl.value = "";
+    render();
+  }
+
   function render() {
+    if (apps.length === 0) {
+      // Don't let stale filters hide the next record that gets added.
+      searchQuery = "";
+      statusFilter = "All";
+      searchEl.value = "";
+    }
+
     var sorted = apps.slice().sort(function (a, b) {
       if (a.date !== b.date) return a.date < b.date ? 1 : -1;
       return a.id < b.id ? 1 : -1;
     });
 
+    // Chip counts follow the search text, so they match what each chip would show.
+    var searched = sorted.filter(matchesSearch);
+    var counts = {};
+    searched.forEach(function (a) { counts[a.status] = (counts[a.status] || 0) + 1; });
+    var visible = statusFilter === "All" ? searched : searched.filter(function (a) {
+      return a.status === statusFilter;
+    });
+
     rowsEl.textContent = "";
-    sorted.forEach(function (app) {
+    visible.forEach(function (app) {
       var tr = document.createElement("tr");
       tr.appendChild(cell(app.company));
       tr.appendChild(cell(app.role));
@@ -147,6 +216,9 @@
     });
 
     emptyEl.hidden = apps.length > 0;
+    filtersEl.hidden = apps.length === 0;
+    noMatchesEl.hidden = apps.length === 0 || visible.length > 0;
+    renderChips(counts, searched.length);
 
     if (apps.length === 0) {
       summaryEl.textContent = "";
@@ -170,9 +242,13 @@
     };
     if (!data.company || !data.role || !data.date) return;
 
+    var saved = data;
     if (editingId) {
       var existing = apps.filter(function (a) { return a.id === editingId; })[0];
-      if (existing) Object.assign(existing, data);
+      if (existing) {
+        Object.assign(existing, data);
+        saved = existing;
+      }
     } else {
       data.id = newId();
       apps.push(data);
@@ -180,9 +256,19 @@
     save();
     render();
     resetForm();
+    if (!isVisible(saved)) {
+      showMessage("Saved. It's hidden by the current filters.", "success");
+    }
   });
 
   cancelBtn.addEventListener("click", resetForm);
+
+  searchEl.addEventListener("input", function () {
+    searchQuery = searchEl.value;
+    render();
+  });
+
+  document.getElementById("clear-filters").addEventListener("click", clearFilters);
 
   // ----- Export / Import -----
 

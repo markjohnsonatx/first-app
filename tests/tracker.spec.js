@@ -204,3 +204,172 @@ test("rejects invalid import files and leaves data untouched", async ({ page }) 
   await expect(page.locator("#rows tr")).toHaveCount(1);
   await expect(rowFor(page, "Acme Corp")).toHaveCount(1);
 });
+
+test.describe("search and filters", () => {
+  const HOOLI = {
+    company: "Hooli",
+    role: "Data Engineer",
+    date: "2026-08-20",
+    status: "Applied",
+    notes: "Remote role"
+  };
+
+  async function seed(page, records) {
+    const withIds = records.map((r, i) => ({ id: `seed-${i}`, ...r }));
+    await page.evaluate(
+      (recs) => localStorage.setItem("jobApplications", JSON.stringify(recs)),
+      withIds
+    );
+    await page.reload();
+  }
+
+  const chip = (page, label) => page.getByRole("button", { name: label, exact: true });
+  const search = (page) => page.locator("#search");
+
+  test.beforeEach(async ({ page }) => {
+    await seed(page, [ACME, GLOBEX, INITECH, HOOLI]);
+    await expect(page.locator("#rows tr")).toHaveCount(4);
+  });
+
+  test("search matches company, role and notes, ignoring case", async ({ page }) => {
+    await search(page).fill("ACME");
+    await expect(page.locator("#rows tr")).toHaveCount(1);
+    await expect(rowFor(page, "Acme Corp")).toHaveCount(1);
+
+    await search(page).fill("backend");
+    await expect(page.locator("#rows tr")).toHaveCount(1);
+    await expect(rowFor(page, "Globex")).toHaveCount(1);
+
+    await search(page).fill("PHONE SCREEN");
+    await expect(page.locator("#rows tr")).toHaveCount(1);
+    await expect(rowFor(page, "Globex")).toHaveCount(1);
+
+    await search(page).fill("remote");
+    await expect(page.locator("#rows tr")).toHaveCount(1);
+    await expect(rowFor(page, "Hooli")).toHaveCount(1);
+
+    // Only company, role and notes are searched, not the date or status.
+    await search(page).fill("2026-09");
+    await expect(page.locator("#rows tr")).toHaveCount(0);
+    await search(page).fill("Interviewing");
+    await expect(page.locator("#rows tr")).toHaveCount(0);
+  });
+
+  test("search filters as you type and restores the list when cleared", async ({ page }) => {
+    await search(page).pressSequentially("ho");
+    await expect(page.locator("#rows tr")).toHaveCount(2); // Globex ("Phone"), Hooli
+
+    await search(page).pressSequentially("o");
+    await expect(page.locator("#rows tr")).toHaveCount(1);
+    await expect(rowFor(page, "Hooli")).toHaveCount(1);
+
+    await search(page).fill("");
+    await expect(page.locator("#rows tr")).toHaveCount(4);
+  });
+
+  test("status chips show counts and filter the list", async ({ page }) => {
+    await expect(chip(page, "All 4")).toBeVisible();
+    await expect(chip(page, "Applied 2")).toBeVisible();
+    await expect(chip(page, "Interviewing 1")).toBeVisible();
+    await expect(chip(page, "Offer 1")).toBeVisible();
+    await expect(chip(page, "Rejected 0")).toBeVisible();
+    await expect(chip(page, "Withdrawn 0")).toBeVisible();
+    await expect(chip(page, "All 4")).toHaveAttribute("aria-pressed", "true");
+
+    await chip(page, "Applied 2").click();
+    await expect(page.locator("#rows tr")).toHaveCount(2);
+    await expect(rowFor(page, "Acme Corp")).toHaveCount(1);
+    await expect(rowFor(page, "Hooli")).toHaveCount(1);
+    await expect(rowFor(page, "Globex")).toHaveCount(0);
+    await expect(chip(page, "Applied 2")).toHaveAttribute("aria-pressed", "true");
+    await expect(chip(page, "All 4")).toHaveAttribute("aria-pressed", "false");
+
+    await chip(page, "All 4").click();
+    await expect(page.locator("#rows tr")).toHaveCount(4);
+  });
+
+  test("search and status filter work together", async ({ page }) => {
+    await search(page).fill("engineer");
+    await expect(page.locator("#rows tr")).toHaveCount(3);
+
+    // Chip counts follow the search text.
+    await expect(chip(page, "All 3")).toBeVisible();
+    await expect(chip(page, "Applied 2")).toBeVisible();
+    await expect(chip(page, "Interviewing 1")).toBeVisible();
+    await expect(chip(page, "Offer 0")).toBeVisible();
+
+    await chip(page, "Applied 2").click();
+    await expect(page.locator("#rows tr")).toHaveCount(2);
+    await expect(rowFor(page, "Globex")).toHaveCount(0);
+
+    // Changing the search keeps the chosen status.
+    await search(page).fill("frontend");
+    await expect(page.locator("#rows tr")).toHaveCount(1);
+    await expect(rowFor(page, "Acme Corp")).toHaveCount(1);
+    await expect(chip(page, "Applied 1")).toHaveAttribute("aria-pressed", "true");
+
+    // Clearing the search keeps the status filter.
+    await search(page).fill("");
+    await expect(page.locator("#rows tr")).toHaveCount(2);
+    await expect(chip(page, "Applied 2")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("shows a friendly message when nothing matches", async ({ page }) => {
+    await search(page).fill("zzzz-no-such-thing");
+    await expect(page.locator("#rows tr")).toHaveCount(0);
+    await expect(page.locator("#no-matches")).toBeVisible();
+    await expect(page.locator("#no-matches")).toContainText("No applications match your search");
+    await expect(page.locator("#empty")).toBeHidden();
+
+    await page.getByRole("button", { name: "Clear filters" }).click();
+    await expect(search(page)).toHaveValue("");
+    await expect(page.locator("#no-matches")).toBeHidden();
+    await expect(page.locator("#rows tr")).toHaveCount(4);
+    await expect(chip(page, "All 4")).toHaveAttribute("aria-pressed", "true");
+
+    // A status with no records shows the same message.
+    await chip(page, "Rejected 0").click();
+    await expect(page.locator("#no-matches")).toBeVisible();
+    await expect(page.locator("#rows tr")).toHaveCount(0);
+  });
+
+  test("no-records state is separate from the no-matches state", async ({ page }) => {
+    await page.evaluate(() => localStorage.removeItem("jobApplications"));
+    await page.reload();
+
+    await expect(page.locator("#empty")).toBeVisible();
+    await expect(page.locator("#no-matches")).toBeHidden();
+    await expect(page.locator("#filters")).toBeHidden();
+  });
+
+  test("export includes all records even while filtered", async ({ page }) => {
+    await chip(page, "Offer 1").click();
+    await search(page).fill("initech");
+    await expect(page.locator("#rows tr")).toHaveCount(1);
+
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      page.locator("#export-btn").click()
+    ]);
+    const exported = JSON.parse(fs.readFileSync(await download.path(), "utf8"));
+    expect(exported).toHaveLength(4);
+  });
+
+  test("a saved record hidden by the filters is explained", async ({ page }) => {
+    await chip(page, "Offer 1").click();
+    await expect(page.locator("#rows tr")).toHaveCount(1);
+
+    await addRecord(page, {
+      company: "Wayne Enterprises",
+      role: "QA Engineer",
+      date: "2026-10-05",
+      status: "Applied"
+    });
+
+    await expect(page.locator("#message")).toContainText("hidden by the current filters");
+    await expect(rowFor(page, "Wayne")).toHaveCount(0);
+
+    await chip(page, "All 5").click();
+    await expect(rowFor(page, "Wayne")).toHaveCount(1);
+  });
+});

@@ -82,6 +82,45 @@ button[type="submit"] {
 
 button.danger { color: #b42318; }
 
+.filters { margin-top: 16px; }
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+}
+
+.chip .count {
+  min-width: 1.4em;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.chip[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.chip[aria-pressed="true"] .count { background: rgba(255, 255, 255, 0.25); color: #fff; }
+.chip.zero:not([aria-pressed="true"]) { opacity: 0.55; }
+
+#no-matches button { margin-top: 4px; }
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;
