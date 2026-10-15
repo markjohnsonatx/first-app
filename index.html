@@ -41,7 +41,15 @@
       </div>
     </form>
 
-    <p id="summary" class="summary"></p>
+    <div class="toolbar">
+      <p id="summary" class="summary"></p>
+      <div class="toolbar-buttons">
+        <button type="button" id="export-btn">Export</button>
+        <button type="button" id="import-btn">Import</button>
+        <input type="file" id="import-file" accept=".json,application/json" hidden>
+      </div>
+    </div>
+    <p id="message" class="message" role="status" hidden></p>
 
     <div class="table-wrap">
       <table>
@@ -60,6 +68,17 @@
       <p id="empty" class="empty" hidden>No applications yet. Add your first one above.</p>
     </div>
   </main>
+  <dialog id="import-dialog">
+    <form method="dialog" id="import-form">
+      <h2>Import records</h2>
+      <p id="import-text"></p>
+      <div class="actions">
+        <button type="button" id="import-replace">Replace existing</button>
+        <button type="button" id="import-merge">Merge (skip duplicates)</button>
+        <button type="button" id="import-cancel">Cancel</button>
+      </div>
+    </form>
+  </dialog>
   <script src="app.js"></script>
 </body>
 </html>

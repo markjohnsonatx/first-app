@@ -82,7 +82,39 @@ button[type="submit"] {
 
 button.danger { color: #b42318; }
 
-.summary { margin: 16px 0 8px; color: var(--muted); font-size: 0.9rem; }
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 16px 0 8px;
+}
+
+.toolbar-buttons { display: flex; gap: 8px; }
+
+.summary { margin: 0; color: var(--muted); font-size: 0.9rem; }
+
+.message {
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+.message.success { background: #dff6e3; color: #11672a; }
+.message.error   { background: #fde4e1; color: #a1281c; }
+
+dialog {
+  max-width: 420px;
+  width: calc(100% - 32px);
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+}
+dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
+dialog form { border: none; padding: 0; }
+dialog .actions { flex-wrap: wrap; }
 
 .table-wrap { overflow-x: auto; padding: 0; }
 

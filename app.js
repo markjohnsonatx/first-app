@@ -184,6 +184,197 @@
 
   cancelBtn.addEventListener("click", resetForm);
 
+  // ----- Export / Import -----
+
+  var exportBtn = document.getElementById("export-btn");
+  var importBtn = document.getElementById("import-btn");
+  var importFile = document.getElementById("import-file");
+  var messageEl = document.getElementById("message");
+  var dialog = document.getElementById("import-dialog");
+  var importText = document.getElementById("import-text");
+  var pendingImport = null;
+
+  function showMessage(text, kind) {
+    messageEl.textContent = text;
+    messageEl.className = "message " + kind;
+    messageEl.hidden = false;
+  }
+
+  function plural(n, word) {
+    return n + " " + word + (n === 1 ? "" : "s");
+  }
+
+  function dupKey(a) {
+    return [a.company, a.role, a.date].map(function (s) {
+      return s.trim().toLowerCase();
+    }).join("|");
+  }
+
+  function exportRecords() {
+    var json = JSON.stringify(apps, null, 2);
+    var url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "job-tracker-" + today() + ".json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 0);
+    showMessage(
+      apps.length ? "Exported " + plural(apps.length, "record") + "."
+                  : "Exported an empty file (no records yet).",
+      "success"
+    );
+  }
+
+  // Returns { records } or { error }.
+  function parseImport(text) {
+    var data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      return { error: "This file is not valid JSON." };
+    }
+    if (data && !Array.isArray(data) && Array.isArray(data.applications)) {
+      data = data.applications;
+    }
+    if (!Array.isArray(data)) {
+      return { error: "Unexpected format: expected a list of applications." };
+    }
+    if (data.length === 0) {
+      return { error: "The file contains no records." };
+    }
+
+    var records = [];
+    for (var i = 0; i < data.length; i++) {
+      var r = data[i];
+      var n = "Record " + (i + 1) + ": ";
+      if (!r || typeof r !== "object" || Array.isArray(r)) {
+        return { error: n + "not an object." };
+      }
+      var company = typeof r.company === "string" ? r.company.trim() : "";
+      var role = typeof r.role === "string" ? r.role.trim() : "";
+      if (!company) return { error: n + "missing company." };
+      if (!role) return { error: n + "missing role." };
+      if (typeof r.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(r.date)) {
+        return { error: n + "date must be in YYYY-MM-DD format." };
+      }
+      if (STATUSES.indexOf(r.status) === -1) {
+        return { error: n + "status must be one of " + STATUSES.join(", ") + "." };
+      }
+      if (r.notes != null && typeof r.notes !== "string") {
+        return { error: n + "notes must be text." };
+      }
+      records.push({
+        id: typeof r.id === "string" && r.id ? r.id : "",
+        company: company,
+        role: role,
+        date: r.date,
+        status: r.status,
+        notes: (r.notes || "").trim()
+      });
+    }
+    return { records: records };
+  }
+
+  function usedIds(list) {
+    var set = {};
+    list.forEach(function (a) { set[a.id] = true; });
+    return set;
+  }
+
+  function assignId(rec, taken) {
+    if (!rec.id || taken[rec.id]) {
+      do { rec.id = newId(); } while (taken[rec.id]);
+    }
+    taken[rec.id] = true;
+  }
+
+  function finishImport(message) {
+    save();
+    resetForm();
+    render();
+    showMessage(message, "success");
+  }
+
+  function replaceRecords(records) {
+    var taken = {};
+    records.forEach(function (r) { assignId(r, taken); });
+    apps = records;
+    finishImport("Replaced all records with " + plural(records.length, "imported record") + ".");
+  }
+
+  function mergeRecords(records) {
+    var taken = usedIds(apps);
+    var keys = {};
+    apps.forEach(function (a) { keys[dupKey(a)] = true; });
+    var added = 0;
+    var skipped = 0;
+    records.forEach(function (r) {
+      var isDup = (r.id && taken[r.id]) || keys[dupKey(r)];
+      if (isDup) {
+        skipped++;
+        return;
+      }
+      keys[dupKey(r)] = true;
+      assignId(r, taken);
+      apps.push(r);
+      added++;
+    });
+    finishImport(
+      "Imported " + added + ", skipped " + plural(skipped, "duplicate") + "."
+    );
+  }
+
+  function closeDialog() {
+    pendingImport = null;
+    if (dialog.open) dialog.close();
+  }
+
+  exportBtn.addEventListener("click", exportRecords);
+
+  importBtn.addEventListener("click", function () { importFile.click(); });
+
+  importFile.addEventListener("change", function () {
+    var file = importFile.files && importFile.files[0];
+    importFile.value = "";
+    if (!file) return;
+
+    var reader = new FileReader();
+    reader.onerror = function () {
+      showMessage("Could not read the file.", "error");
+    };
+    reader.onload = function () {
+      var result = parseImport(String(reader.result));
+      if (result.error) {
+        showMessage("Import failed. " + result.error + " No changes were made.", "error");
+        return;
+      }
+      pendingImport = result.records;
+      importText.textContent =
+        "Import " + plural(result.records.length, "record") + " from " + file.name +
+        ". You currently have " + plural(apps.length, "record") + ".";
+      messageEl.hidden = true;
+      dialog.showModal();
+    };
+    reader.readAsText(file);
+  });
+
+  document.getElementById("import-replace").addEventListener("click", function () {
+    var records = pendingImport;
+    closeDialog();
+    if (records) replaceRecords(records);
+  });
+
+  document.getElementById("import-merge").addEventListener("click", function () {
+    var records = pendingImport;
+    closeDialog();
+    if (records) mergeRecords(records);
+  });
+
+  document.getElementById("import-cancel").addEventListener("click", closeDialog);
+  dialog.addEventListener("cancel", function () { pendingImport = null; });
+
   resetForm();
   render();
 })();
