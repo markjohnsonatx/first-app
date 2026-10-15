@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Job Application Tracker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <h1>Job Application Tracker</h1>
+
+    <form id="app-form" autocomplete="off">
+      <h2 id="form-title">Add application</h2>
+      <div class="grid">
+        <label>Company
+          <input type="text" id="company" required>
+        </label>
+        <label>Role
+          <input type="text" id="role" required>
+        </label>
+        <label>Date applied
+          <input type="date" id="date" required>
+        </label>
+        <label>Status
+          <select id="status">
+            <option>Applied</option>
+            <option>Interviewing</option>
+            <option>Offer</option>
+            <option>Rejected</option>
+            <option>Withdrawn</option>
+          </select>
+        </label>
+      </div>
+      <label>Notes
+        <textarea id="notes" rows="3"></textarea>
+      </label>
+      <div class="actions">
+        <button type="submit" id="save-btn">Add</button>
+        <button type="button" id="cancel-btn" hidden>Cancel</button>
+      </div>
+    </form>
+
+    <p id="summary" class="summary"></p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Company</th>
+            <th>Role</th>
+            <th>Date applied</th>
+            <th>Status</th>
+            <th>Notes</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <p id="empty" class="empty" hidden>No applications yet. Add your first one above.</p>
+    </div>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
