@@ -180,6 +180,8 @@ td.row-actions button { padding: 4px 8px; font-size: 0.85rem; }
 .status-Rejected     { background: #fde4e1; color: #a1281c; }
 .status-Withdrawn    { background: #eceef2; color: #4a5160; }
 
+.footer { margin: 24px 0; text-align: center; color: var(--muted); font-size: 0.8rem; }
+
 .empty { padding: 20px; text-align: center; color: var(--muted); margin: 0; }
 
 @media (max-width: 600px) {

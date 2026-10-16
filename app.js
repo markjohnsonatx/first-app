@@ -461,6 +461,8 @@
   document.getElementById("import-cancel").addEventListener("click", closeDialog);
   dialog.addEventListener("cancel", function () { pendingImport = null; });
 
+  document.getElementById("footer-date").textContent = today();
+
   resetForm();
   render();
 })();

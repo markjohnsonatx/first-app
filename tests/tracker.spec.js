@@ -205,6 +205,10 @@ test("rejects invalid import files and leaves data untouched", async ({ page }) 
   await expect(rowFor(page, "Acme Corp")).toHaveCount(1);
 });
 
+test("shows a footer with today's date", async ({ page }) => {
+  await expect(page.locator("#footer")).toHaveText(`Built with Claude Code · ${isoToday()}`);
+});
+
 test.describe("search and filters", () => {
   const HOOLI = {
     company: "Hooli",
