@@ -3,3 +3,9 @@ test-results/
 playwright-report/
 blob-report/
 playwright/.cache/
+data/
+job-tracker-*.json
+*.xlsx
+*.docx
+*.pdf
+.env

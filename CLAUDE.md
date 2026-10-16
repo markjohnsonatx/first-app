@@ -28,7 +28,7 @@ There is no linter or build.
 
 ## Tests
 
-`tests/tracker.spec.js` is the only spec file. Tests seed data through `localStorage` plus a reload, or by driving the UI, and locate status chips by accessible name (for example "Applied 2"), so changing chip label text will break them. Playwright output (`test-results/`, `playwright-report/`) and `node_modules/` are gitignored.
+`tests/tracker.spec.js` is the only spec file. Tests seed data through `localStorage` plus a reload, or by driving the UI, and locate status chips by accessible name (for example "Applied 2"), so changing chip label text will break them. Playwright output (`test-results/`, `playwright-report/`) and `node_modules/` are gitignored. So are likely personal files: `data/`, `job-tracker-*.json` exports, `*.xlsx`, `*.docx`, `*.pdf` and `.env`. Never commit those.
 
 ## CI
 
