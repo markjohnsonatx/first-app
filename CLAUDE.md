@@ -33,3 +33,5 @@ There is no linter or build.
 ## CI
 
 `.github/workflows/playwright.yml` runs the suite on every push and pull request to `main` on `ubuntu-24.04`, and uploads the HTML report as an artifact even when tests fail.
+
+A `deploy` job (`needs: test`, pushes to `main` only, never PRs) publishes the site to GitHub Pages at https://markjohnsonatx.github.io/first-app/. It copies only `index.html`, `style.css` and `app.js` into `_site/`, so a new runtime file must be added to that `cp` step or it will be missing from the live site. Pages must have **Settings > Pages > Source: GitHub Actions**. If tests fail, deploy is skipped and the previous site stays live.
