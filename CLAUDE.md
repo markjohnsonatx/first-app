@@ -24,6 +24,7 @@ There is no linter or build.
 - **Rendering uses `textContent` only, never `innerHTML`.** Keep it that way, since notes and company names are user input.
 - **Search and status filter** (`searchQuery`, `statusFilter`) are in-memory only and are not persisted. Chip counts follow the search text. Filtering never affects Export, Import or the `#summary` total, which always use all records.
 - **Two distinct empty states:** `#empty` means there are no records at all, `#no-matches` means records exist but the filters hide them. Existing tests depend on this distinction. Filters reset when the last record is deleted.
+- **Duplicate warning (JT-17):** adding a new record whose company + role match an existing one (case-insensitive, trimmed, date ignored) triggers `window.confirm`; cancelling keeps the form as typed. Edits do not warn. This is separate from the import duplicate rule below, which includes the date.
 - **Export/Import:** Export downloads `job-tracker-YYYY-MM-DD.json` via Blob. Import validates strictly, so one bad record rejects the whole file with an error message. A `<dialog>` then offers Replace or Merge. A duplicate is the same `id`, or the same lower-cased and trimmed company + role + date.
 
 ## Tests
