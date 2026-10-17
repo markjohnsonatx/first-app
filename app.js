@@ -231,6 +231,12 @@
     }
   }
 
+  // Same company + role, ignoring case and surrounding spaces (date is not compared).
+  function sameRole(a, b) {
+    function norm(s) { return s.trim().toLowerCase(); }
+    return norm(a.company) === norm(b.company) && norm(a.role) === norm(b.role);
+  }
+
   form.addEventListener("submit", function (e) {
     e.preventDefault();
     var data = {
@@ -250,6 +256,10 @@
         saved = existing;
       }
     } else {
+      if (apps.some(function (a) { return sameRole(a, data); }) &&
+          !window.confirm("You already logged " + data.role + " at " + data.company + ". Save anyway?")) {
+        return;
+      }
       data.id = newId();
       apps.push(data);
     }

@@ -92,6 +92,32 @@ test("edits a record", async ({ page }) => {
   await expect(page.locator("#save-btn")).toHaveText("Add");
 });
 
+test("warns about a duplicate company and role, and lets me cancel or save anyway", async ({ page }) => {
+  await addRecord(page, ACME);
+  const dupe = { ...ACME, company: "  acme corp ", role: "FRONTEND ENGINEER", date: "2026-10-05" };
+
+  let message = "";
+  page.once("dialog", (dialog) => { message = dialog.message(); dialog.dismiss(); });
+  await addRecord(page, dupe);
+  expect(message).toContain("already logged");
+  await expect(page.locator("#rows tr")).toHaveCount(1);
+  await expect(page.locator("#company")).toHaveValue("  acme corp ");
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#save-btn").click();
+  await expect(page.locator("#rows tr")).toHaveCount(2);
+  await expect(page.locator("#company")).toHaveValue("");
+});
+
+test("does not warn when the company matches but the role differs", async ({ page }) => {
+  await addRecord(page, ACME);
+  let warned = false;
+  page.on("dialog", (dialog) => { warned = true; dialog.dismiss(); });
+  await addRecord(page, { ...ACME, role: "Backend Engineer" });
+  await expect(page.locator("#rows tr")).toHaveCount(2);
+  expect(warned).toBe(false);
+});
+
 test("deletes a record after confirming", async ({ page }) => {
   await addRecord(page, ACME);
   await addRecord(page, GLOBEX);
