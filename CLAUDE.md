@@ -36,3 +36,12 @@ There is no linter or build.
 `.github/workflows/playwright.yml` runs the suite on every push and pull request to `main` on `ubuntu-24.04`, and uploads the HTML report as an artifact even when tests fail.
 
 A `deploy` job (`needs: test`, pushes to `main` only, never PRs) publishes the site to GitHub Pages at https://markjohnsonatx.github.io/first-app/. It copies only `index.html`, `style.css` and `app.js` into `_site/`, so a new runtime file must be added to that `cp` step or it will be missing from the live site. Pages must have **Settings > Pages > Source: GitHub Actions**. If tests fail, deploy is skipped and the previous site stays live.
+
+## Jira workflow
+
+Work is tracked in the Jira project `JT` (Job Tracker) at markjohnsonatx.atlassian.net.
+
+- **Before planning**, fetch the ticket's acceptance criteria from Jira.
+- **Use the JT key** in branch names, commit messages and PR titles, for example `JT-17-duplicate-warning`, `JT-17 Warn about duplicate applications`.
+- **Status:** move the ticket to In Progress when work starts and to In Review when the PR opens. The transition names differ from the status names: `Progress` (id 31) and `Review` (id 41).
+- **After each story**, log tech debt and risks as Jira tasks labeled `dev-feedback`.
