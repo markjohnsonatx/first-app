@@ -37,6 +37,8 @@ There is no linter or build.
 
 A `deploy` job (`needs: test`, pushes to `main` only, never PRs) publishes the site to GitHub Pages at https://markjohnsonatx.github.io/first-app/. It copies only `index.html`, `style.css` and `app.js` into `_site/`, so a new runtime file must be added to that `cp` step or it will be missing from the live site. Pages must have **Settings > Pages > Source: GitHub Actions**. If tests fail, deploy is skipped and the previous site stays live.
 
+`.jira/config.yml` tells GitHub for Atlassian to treat the `github-pages` deployment environment as Production, so Jira shows deployments as Production instead of "Undefined environment" and counts them in delivery metrics. It must be on `main`. Once it exists Jira stops auto-detecting environment names, so a new deploy environment name must be added to it. Past deployments keep their original environment.
+
 ## Jira workflow
 
 Work is tracked in the Jira project `JT` (Job Tracker) at markjohnsonatx.atlassian.net.
