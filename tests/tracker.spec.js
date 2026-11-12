@@ -53,8 +53,21 @@ const INITECH = {
   notes: ""
 };
 
+// The app uses in-page <dialog>s only. Record any native alert/confirm so a
+// regression to window.confirm fails the test instead of silently auto-dismissing.
+let nativeDialogs;
+
 test.beforeEach(async ({ page }) => {
+  nativeDialogs = [];
+  page.on("dialog", async (dialog) => {
+    nativeDialogs.push(dialog.message());
+    await dialog.dismiss();
+  });
   await page.goto("/");
+});
+
+test.afterEach(() => {
+  expect(nativeDialogs).toEqual([]);
 });
 
 test("adds a record", async ({ page }) => {
@@ -92,48 +105,128 @@ test("edits a record", async ({ page }) => {
   await expect(page.locator("#save-btn")).toHaveText("Add");
 });
 
-test("warns about a duplicate company and role, and lets me cancel or save anyway", async ({ page }) => {
-  await addRecord(page, ACME);
-  const dupe = { ...ACME, company: "  acme corp ", role: "FRONTEND ENGINEER", date: "2026-10-05" };
+test.describe("duplicate warning dialog", () => {
+  const DUPE = { ...ACME, company: "  acme corp ", role: "FRONTEND ENGINEER", date: "2026-10-05" };
 
-  let message = "";
-  page.once("dialog", (dialog) => { message = dialog.message(); dialog.dismiss(); });
-  await addRecord(page, dupe);
-  expect(message).toContain("already logged");
-  await expect(page.locator("#rows tr")).toHaveCount(1);
-  await expect(page.locator("#company")).toHaveValue("  acme corp ");
+  test("shows the existing record and lets me save anyway", async ({ page }) => {
+    await addRecord(page, { ...ACME, status: "Interviewing" });
+    await addRecord(page, DUPE);
 
-  page.once("dialog", (dialog) => dialog.accept());
-  await page.locator("#save-btn").click();
-  await expect(page.locator("#rows tr")).toHaveCount(2);
-  await expect(page.locator("#company")).toHaveValue("");
+    const dialog = page.getByRole("dialog", { name: "Possible duplicate" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText("Acme Corp");
+    await expect(dialog).toContainText("Frontend Engineer");
+    await expect(dialog).toContainText("2026-09-01");
+    await expect(dialog).toContainText("Interviewing");
+    await expect(page.locator("#rows tr")).toHaveCount(1);
+
+    await dialog.getByRole("button", { name: "Save anyway" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page.locator("#rows tr")).toHaveCount(2);
+    await expect(page.locator("#company")).toHaveValue("");
+    await expect(page.locator("#company")).toBeFocused();
+  });
+
+  test("Cancel saves nothing, keeps my entries and returns focus to the form", async ({ page }) => {
+    await addRecord(page, ACME);
+    await addRecord(page, DUPE);
+
+    const dialog = page.getByRole("dialog", { name: "Possible duplicate" });
+    await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+
+    await expect(dialog).toBeHidden();
+    await expect(page.locator("#rows tr")).toHaveCount(1);
+    await expect(page.locator("#company")).toHaveValue("  acme corp ");
+    await expect(page.locator("#role")).toHaveValue("FRONTEND ENGINEER");
+    await expect(page.locator("#date")).toHaveValue("2026-10-05");
+    await expect(page.locator("#save-btn")).toBeFocused();
+  });
+
+  test("Escape behaves like Cancel", async ({ page }) => {
+    await addRecord(page, ACME);
+    await addRecord(page, DUPE);
+
+    const dialog = page.getByRole("dialog", { name: "Possible duplicate" });
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    await expect(dialog).toBeHidden();
+    await expect(page.locator("#rows tr")).toHaveCount(1);
+    await expect(page.locator("#company")).toHaveValue("  acme corp ");
+    await expect(page.locator("#save-btn")).toBeFocused();
+  });
+
+  test("does not warn when the company matches but the role differs", async ({ page }) => {
+    await addRecord(page, ACME);
+    await addRecord(page, { ...ACME, role: "Backend Engineer" });
+    await expect(page.locator("#rows tr")).toHaveCount(2);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  });
+
+  test("does not warn when editing a record", async ({ page }) => {
+    await addRecord(page, ACME);
+    await rowFor(page, "Acme Corp").getByRole("button", { name: "Edit" }).click();
+    await page.locator("#notes").fill("Updated");
+    await page.locator("#save-btn").click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(rowFor(page, "Acme Corp")).toContainText("Updated");
+  });
 });
 
-test("does not warn when the company matches but the role differs", async ({ page }) => {
-  await addRecord(page, ACME);
-  let warned = false;
-  page.on("dialog", (dialog) => { warned = true; dialog.dismiss(); });
-  await addRecord(page, { ...ACME, role: "Backend Engineer" });
-  await expect(page.locator("#rows tr")).toHaveCount(2);
-  expect(warned).toBe(false);
-});
+test.describe("delete confirmation dialog", () => {
+  test("names the record and removes it only after I confirm", async ({ page }) => {
+    await addRecord(page, ACME);
+    await addRecord(page, GLOBEX);
 
-test("deletes a record after confirming", async ({ page }) => {
-  await addRecord(page, ACME);
-  await addRecord(page, GLOBEX);
+    await rowFor(page, "Acme Corp").getByRole("button", { name: "Delete" }).click();
+    const dialog = page.getByRole("dialog", { name: "Delete application" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText("Frontend Engineer");
+    await expect(dialog).toContainText("Acme Corp");
+    await expect(rowFor(page, "Acme Corp")).toHaveCount(1);
 
-  page.once("dialog", (dialog) => dialog.dismiss());
-  await rowFor(page, "Acme Corp").getByRole("button", { name: "Delete" }).click();
-  await expect(rowFor(page, "Acme Corp")).toHaveCount(1);
+    await dialog.getByRole("button", { name: "Delete" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(rowFor(page, "Acme Corp")).toHaveCount(0);
+    await expect(rowFor(page, "Globex")).toHaveCount(1);
+    await expect(page.locator("#company")).toBeFocused();
+  });
 
-  page.once("dialog", (dialog) => dialog.accept());
-  await rowFor(page, "Acme Corp").getByRole("button", { name: "Delete" }).click();
-  await expect(rowFor(page, "Acme Corp")).toHaveCount(0);
-  await expect(rowFor(page, "Globex")).toHaveCount(1);
+  test("Cancel keeps the record and returns focus to its Delete button", async ({ page }) => {
+    await addRecord(page, ACME);
 
-  page.once("dialog", (dialog) => dialog.accept());
-  await rowFor(page, "Globex").getByRole("button", { name: "Delete" }).click();
-  await expect(page.locator("#empty")).toBeVisible();
+    const trigger = rowFor(page, "Acme Corp").getByRole("button", { name: "Delete" });
+    await trigger.click();
+    const dialog = page.getByRole("dialog", { name: "Delete application" });
+    await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+
+    await expect(dialog).toBeHidden();
+    await expect(rowFor(page, "Acme Corp")).toHaveCount(1);
+    await expect(trigger).toBeFocused();
+  });
+
+  test("Escape keeps the record and returns focus to its Delete button", async ({ page }) => {
+    await addRecord(page, ACME);
+
+    const trigger = rowFor(page, "Acme Corp").getByRole("button", { name: "Delete" });
+    await trigger.click();
+    await expect(page.getByRole("dialog", { name: "Delete application" })).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(rowFor(page, "Acme Corp")).toHaveCount(1);
+    await expect(trigger).toBeFocused();
+  });
+
+  test("deleting the last record shows the empty state", async ({ page }) => {
+    await addRecord(page, GLOBEX);
+    await rowFor(page, "Globex").getByRole("button", { name: "Delete" }).click();
+    await page.getByRole("dialog", { name: "Delete application" })
+      .getByRole("button", { name: "Delete" }).click();
+    await expect(page.locator("#empty")).toBeVisible();
+  });
 });
 
 test("persists records after a reload", async ({ page }) => {

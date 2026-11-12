@@ -90,6 +90,32 @@
       </div>
     </form>
   </dialog>
+  <dialog id="duplicate-dialog" aria-labelledby="duplicate-title">
+    <form method="dialog">
+      <h2 id="duplicate-title">Possible duplicate</h2>
+      <p>You already logged this role. Is this a repeat?</p>
+      <dl class="details">
+        <dt>Company</dt><dd id="dup-company"></dd>
+        <dt>Role</dt><dd id="dup-role"></dd>
+        <dt>Date applied</dt><dd id="dup-date"></dd>
+        <dt>Status</dt><dd id="dup-status"></dd>
+      </dl>
+      <div class="actions">
+        <button type="button" id="duplicate-cancel" autofocus>Cancel</button>
+        <button type="button" id="duplicate-save">Save anyway</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="delete-dialog" aria-labelledby="delete-title">
+    <form method="dialog">
+      <h2 id="delete-title">Delete application</h2>
+      <p id="delete-text"></p>
+      <div class="actions">
+        <button type="button" id="delete-cancel" autofocus>Cancel</button>
+        <button type="button" id="delete-confirm" class="danger">Delete</button>
+      </div>
+    </form>
+  </dialog>
   <script src="app.js"></script>
 </body>
 </html>

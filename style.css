@@ -154,6 +154,9 @@ dialog {
 dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
 dialog form { border: none; padding: 0; }
 dialog .actions { flex-wrap: wrap; }
+dialog .details { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0 0 12px; }
+dialog .details dt { color: var(--muted); }
+dialog .details dd { margin: 0; overflow-wrap: anywhere; }
 
 .table-wrap { overflow-x: auto; padding: 0; }
 
