@@ -25,6 +25,10 @@
   var chipsEl = document.getElementById("chips");
   var noMatchesEl = document.getElementById("no-matches");
 
+  var duplicateDialog = document.getElementById("duplicate-dialog");
+  var deleteDialog = document.getElementById("delete-dialog");
+  var confirmState = null;
+
   var apps = load();
   var editingId = null;
   var searchQuery = "";
@@ -80,6 +84,34 @@
     cancelBtn.hidden = false;
     fields.company.focus();
     form.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // Opens an in-page confirm dialog. onConfirm runs only if the user confirms;
+  // otherwise (Cancel button or Escape) focus goes back to returnFocusEl.
+  function askConfirm(dialogEl, returnFocusEl, onConfirm) {
+    confirmState = { returnFocusEl: returnFocusEl, onConfirm: onConfirm, confirmed: false };
+    dialogEl.showModal();
+  }
+
+  function wireConfirmDialog(dialogEl, cancelId, confirmId) {
+    document.getElementById(cancelId).addEventListener("click", function () {
+      dialogEl.close();
+    });
+    document.getElementById(confirmId).addEventListener("click", function () {
+      if (confirmState) confirmState.confirmed = true;
+      dialogEl.close();
+    });
+    // Fires for every way the dialog closes, including Escape.
+    dialogEl.addEventListener("close", function () {
+      var state = confirmState;
+      confirmState = null;
+      if (!state) return;
+      if (state.confirmed) {
+        state.onConfirm();
+      } else if (document.contains(state.returnFocusEl)) {
+        state.returnFocusEl.focus();
+      }
+    });
   }
 
   function cell(text, className) {
@@ -200,11 +232,16 @@
       delBtn.className = "danger";
       delBtn.textContent = "Delete";
       delBtn.addEventListener("click", function () {
-        if (!confirm("Delete the application to " + app.company + "?")) return;
-        apps = apps.filter(function (a) { return a.id !== app.id; });
-        if (editingId === app.id) resetForm();
-        save();
-        render();
+        document.getElementById("delete-text").textContent =
+          "Delete your application for " + app.role + " at " + app.company + "? This cannot be undone.";
+        askConfirm(deleteDialog, delBtn, function () {
+          apps = apps.filter(function (a) { return a.id !== app.id; });
+          if (editingId === app.id) resetForm();
+          save();
+          render();
+          // The row (and its Delete button) is gone, so move focus to the form.
+          fields.company.focus();
+        });
       });
 
       actions.appendChild(editBtn);
@@ -237,6 +274,28 @@
     return norm(a.company) === norm(b.company) && norm(a.role) === norm(b.role);
   }
 
+  // The most recent existing record with the same company + role, or undefined.
+  function findDuplicate(data) {
+    return apps.filter(function (a) { return sameRole(a, data); }).sort(function (a, b) {
+      return a.date < b.date ? 1 : -1;
+    })[0];
+  }
+
+  function finishSave(saved) {
+    save();
+    render();
+    resetForm();
+    if (!isVisible(saved)) {
+      showMessage("Saved. It's hidden by the current filters.", "success");
+    }
+  }
+
+  function addRecord(data) {
+    data.id = newId();
+    apps.push(data);
+    finishSave(data);
+  }
+
   form.addEventListener("submit", function (e) {
     e.preventDefault();
     var data = {
@@ -248,27 +307,27 @@
     };
     if (!data.company || !data.role || !data.date) return;
 
-    var saved = data;
     if (editingId) {
       var existing = apps.filter(function (a) { return a.id === editingId; })[0];
-      if (existing) {
-        Object.assign(existing, data);
-        saved = existing;
-      }
-    } else {
-      if (apps.some(function (a) { return sameRole(a, data); }) &&
-          !window.confirm("You already logged " + data.role + " at " + data.company + ". Save anyway?")) {
-        return;
-      }
-      data.id = newId();
-      apps.push(data);
+      if (existing) Object.assign(existing, data);
+      finishSave(existing || data);
+      return;
     }
-    save();
-    render();
-    resetForm();
-    if (!isVisible(saved)) {
-      showMessage("Saved. It's hidden by the current filters.", "success");
+
+    var duplicate = findDuplicate(data);
+    if (!duplicate) {
+      addRecord(data);
+      return;
     }
+    document.getElementById("dup-company").textContent = duplicate.company;
+    document.getElementById("dup-role").textContent = duplicate.role;
+    document.getElementById("dup-date").textContent = duplicate.date;
+    document.getElementById("dup-status").textContent = duplicate.status;
+    // Cancel or Escape leaves the form exactly as typed.
+    askConfirm(duplicateDialog, saveBtn, function () {
+      addRecord(data);
+      fields.company.focus();
+    });
   });
 
   cancelBtn.addEventListener("click", resetForm);
@@ -470,6 +529,9 @@
 
   document.getElementById("import-cancel").addEventListener("click", closeDialog);
   dialog.addEventListener("cancel", function () { pendingImport = null; });
+
+  wireConfirmDialog(duplicateDialog, "duplicate-cancel", "duplicate-save");
+  wireConfirmDialog(deleteDialog, "delete-cancel", "delete-confirm");
 
   document.getElementById("footer-date").textContent = today();
 
