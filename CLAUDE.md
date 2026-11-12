@@ -47,4 +47,5 @@ Work is tracked in the Jira project `JT` (Job Tracker) at markjohnsonatx.atlassi
 - **Before planning**, fetch the ticket's acceptance criteria from Jira.
 - **Use the JT key** in branch names, commit messages and PR titles, for example `JT-17-duplicate-warning`, `JT-17 Warn about duplicate applications`.
 - **Status:** move the ticket to In Progress when work starts and to In Review when the PR opens. The transition names differ from the status names: `Progress` (id 31) and `Review` (id 41).
+- **After a PR is merged**, move the ticket to Done (`transitionName: "Done"` works), switch to `main`, pull, delete the local branch, and run `git fetch --prune`. Squash merges make `git branch -d` warn that the branch is not merged to HEAD; that is expected once the PR shows as merged, but check first.
 - **After each story**, log tech debt and risks as Jira tasks labeled `dev-feedback`.
